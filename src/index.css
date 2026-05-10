@@ -1,0 +1,57 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-border: var(--app-border);
+  --color-app-text: var(--app-text);
+  --color-app-subtext: var(--app-subtext);
+  --color-app-hover: var(--app-hover);
+  --color-app-card: var(--app-card);
+}
+
+@layer base {
+  :root {
+    --app-bg: #020617;
+    --app-surface: #0f172a;
+    --app-border: rgba(255, 255, 255, 0.05);
+    --app-text: #ffffff;
+    --app-subtext: #94a3b8;
+    --app-accent: #3b82f6;
+    --app-hover: rgba(255, 255, 255, 0.05);
+    --app-card: #0f172a;
+  }
+
+  :root.light {
+    --app-bg: #f8fafc;
+    --app-surface: #ffffff;
+    --app-border: rgba(15, 23, 42, 0.1);
+    --app-text: #0f172a;
+    --app-subtext: #475569;
+    --app-accent: #2563eb;
+    --app-hover: rgba(15, 23, 42, 0.05);
+    --app-card: #ffffff;
+  }
+
+  body {
+    @apply font-sans antialiased transition-colors duration-300;
+    background-color: var(--app-bg);
+    color: var(--app-text);
+  }
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-app-border rounded-full;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-app-subtext/20 rounded-full hover:bg-app-subtext/30 transition-colors;
+}

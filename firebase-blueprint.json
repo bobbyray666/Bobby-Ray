@@ -1,0 +1,58 @@
+{
+  "entities": {
+    "AppProject": {
+      "title": "Application Project",
+      "description": "Metadata for an exported AI Studio application.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "version": { "type": "string" },
+        "techStack": { "type": "array", "items": { "type": "string" } },
+        "summary": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "ownerId", "createdAt", "updatedAt"]
+    },
+    "AppFile": {
+      "title": "Application File",
+      "description": "A single file within an application project.",
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "content": { "type": "string" },
+        "appId": { "type": "string" }
+      },
+      "required": ["path", "content", "appId"]
+    },
+    "AppVersion": {
+      "title": "Application Version",
+      "description": "A snapshot of an application project at a point in time.",
+      "type": "object",
+      "properties": {
+        "version": { "type": "string" },
+        "summary": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "filesHash": { "type": "string" }
+      },
+      "required": ["version", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/apps/{appId}": {
+      "schema": "AppProject",
+      "description": "Collection of user application projects."
+    },
+    "/apps/{appId}/files/{fileId}": {
+      "schema": "AppFile",
+      "description": "Files associated with a specific application."
+    },
+    "/apps/{appId}/versions/{versionId}": {
+      "schema": "AppVersion",
+      "description": "Version history for an application."
+    }
+  }
+}

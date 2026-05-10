@@ -1,0 +1,123 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Primitives
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(ownerId) {
+      return isSignedIn() && request.auth.uid == ownerId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Validation Blueprints
+    function isValidAppProject(data) {
+      return data.keys().hasAll(['id', 'name', 'ownerId', 'createdAt', 'updatedAt']) 
+        && data.keys().size() >= 5
+        && data.ownerId == request.auth.uid
+        && data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 255
+        && (data.description == null || (data.description is string && data.description.size() <= 2000))
+        && (data.summary == null || (data.summary is string && data.summary.size() <= 10000))
+        && (data.version == null || (data.version is string && data.version.size() <= 32))
+        && (data.techStack == null || (data.techStack is list && data.techStack.size() <= 50))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAppFile(data) {
+      return data.keys().hasAll(['path', 'content', 'appId'])
+        && data.keys().size() >= 3
+        && data.path is string && data.path.size() > 0 && data.path.size() <= 1024
+        && data.content is string && data.content.size() <= 1048576 // 1MB limit
+        && data.appId is string && data.appId.size() <= 128;
+    }
+
+    function isValidAppVersion(data) {
+      return data.keys().hasAll(['version', 'timestamp'])
+        && data.keys().size() >= 2
+        && data.version is string && data.version.size() > 0 && data.version.size() <= 32
+        && (data.summary == null || (data.summary is string && data.summary.size() <= 5000))
+        && (data.filesHash == null || (data.filesHash is string && data.filesHash.size() <= 128))
+        && data.timestamp is timestamp;
+    }
+
+    // Main Match Blocks
+    match /apps/{appId} {
+      // Identity Poisoning Guard
+      allow get: if isSignedIn() && isValidId(appId) && isOwner(existing().ownerId);
+      
+      // Secure List Queries
+      allow list: if isSignedIn() && existing().ownerId == request.auth.uid;
+      
+      allow create: if isSignedIn() 
+        && isValidId(appId)
+        && incoming().id == appId
+        && isValidAppProject(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+        
+      allow update: if isOwner(existing().ownerId)
+        && isValidId(appId)
+        && isValidAppProject(incoming())
+        && (
+          // Action: Update Metadata
+          (incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'version', 'techStack', 'summary', 'updatedAt']))
+        )
+        && incoming().id == existing().id
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time;
+        
+      allow delete: if isOwner(existing().ownerId) && isValidId(appId);
+
+      // Relational Sync Gates for Sub-collections
+      match /files/{fileId} {
+        allow get: if isOwner(get(/databases/$(database)/documents/apps/$(appId)).data.ownerId) && isValidId(fileId);
+        allow list: if isOwner(get(/databases/$(database)/documents/apps/$(appId)).data.ownerId);
+        
+        allow create: if isOwner(get(/databases/$(database)/documents/apps/$(appId)).data.ownerId)
+          && isValidId(fileId)
+          && isValidAppFile(incoming())
+          && incoming().appId == appId;
+          
+        allow update: if isOwner(get(/databases/$(database)/documents/apps/$(appId)).data.ownerId)
+          && isValidId(fileId)
+          && isValidAppFile(incoming())
+          && incoming().diff(existing()).affectedKeys().hasOnly(['content', 'path'])
+          && incoming().appId == existing().appId;
+          
+        allow delete: if isOwner(get(/databases/$(database)/documents/apps/$(appId)).data.ownerId) && isValidId(fileId);
+      }
+
+      match /versions/{versionId} {
+        allow get: if isOwner(get(/databases/$(database)/documents/apps/$(appId)).data.ownerId) && isValidId(versionId);
+        allow list: if isOwner(get(/databases/$(database)/documents/apps/$(appId)).data.ownerId);
+        
+        allow create: if isOwner(get(/databases/$(database)/documents/apps/$(appId)).data.ownerId)
+          && isValidId(versionId)
+          && isValidAppVersion(incoming())
+          && incoming().timestamp == request.time;
+          
+        allow delete: if isOwner(get(/databases/$(database)/documents/apps/$(appId)).data.ownerId) && isValidId(versionId);
+      }
+    }
+  }
+}
